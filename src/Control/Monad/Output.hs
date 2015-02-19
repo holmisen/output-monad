@@ -28,8 +28,15 @@
 --
 -- = When is this useful
 --
--- Logging is an obvious example, but one may also want to dump other
--- data to files during processing.
+-- Whenever you want deterministic computations with side effects. It
+-- is ofcourse possible to make specialised monads for those, but that
+-- may be overkill (just like it may be overkill to make you own
+-- specialised IO monad with a restricted subset of IO functions).
+--
+-- Logging is a special case provided for by dedicated logging
+-- frameworks (such as
+-- <http://hackage.haskell.org/package/hslogger>). If you only need
+-- logging you should probably use one of those instead.
 
 module Control.Monad.Output
  ( Output
@@ -51,21 +58,25 @@ import           System.IO (Handle)
 import qualified System.IO as IO
 
 
+-- | Wraps 'IO.hClose'
 hClose :: Handle -> Output ()
 hClose = Output . IO.hClose
 
+-- | Wraps 'IO.hFlush'
 hFlush :: Handle -> Output ()
 hFlush = Output . IO.hFlush
 
-data OutputMode = WriteMode | AppendMode deriving (Eq,Show)
+data OutputMode = AppendMode | WriteMode deriving (Eq, Read, Ord, Show)
 
 toIOMode WriteMode = IO.WriteMode
 toIOMode AppendMode = IO.AppendMode
 
+-- | Wraps 'IO.openFile'
 openFile :: FilePath -> OutputMode -> Output Handle
 openFile path = Output . IO.openFile path . toIOMode
 
 -- TODO: Consider exceptions
+-- | Wraps 'IO.withFile'
 withFile :: FilePath -> OutputMode -> (Handle -> Output a) -> Output a
 withFile path mode f =
   Output $ IO.withFile path (toIOMode mode) (runOutput . f)
